@@ -5,19 +5,28 @@ import os
 from os import listdir
 from os.path import isfile, join
 import re
-
+import hashlib
+import mocpdriver as player
+import sys
+    
 appRunning = True
 seekMinSpeedSec = 6 # seconds (Create a seekMaxSpeedSec later and do a variable speed)
 musicDir = None
 bookmark = None
 
+appState = 'player' # '': player, ''
+
 def main():
     global appRunning
+    global appState
+    player.init()
     while appRunning:
         c = readchar.readchar() # Or readchar.readkey()
 
         if(c == 'q'): # Usefull for development! Could be a command later
             appRunning = False
+        elif appState == 'direct-access':
+            directAccess_ProcessKey(c);
         else:
             playerScreen_ProcessKey(c);
             
@@ -25,77 +34,96 @@ def main():
 
         # call(["ls", "-l"])
 
+def directAccess_ProcessKey(key):
+    global appState
+        
+    if key == '.':
+        print('\nDone direct access.')
+        appState = 'player'
+    else:
+        sys.stdout.write(key)
 
 def playerScreen_ProcessKey(key):
     global bookmark
+    global appState
     
     if(key == '\r'):
         print('Play/Pause')
-        call(['mocp', '-G']) # Next song
+        player.togglePlayPause()
 
     elif(key == '2'):
         print('Previous song')
-        call(['mocp', '-r']) # Previous song
+        player.previousSong()
     elif(key == '3'):
         print('Next song')
-        call(['mocp', '-f']) # Next song
+        player.nextSong()
 
     elif(key == '5'):
         print('<< ' + str(seekMinSpeedSec) + ' sec')
-        call(['mocp', '-k-' + str(seekMinSpeedSec)]) # Next song
+        player.rr(seekMinSpeedSec)
     elif(key == '6'):
         print('>> ' + str(seekMinSpeedSec) + ' sec')
-        call(['mocp', '-k' + str(seekMinSpeedSec)]) # Next song
+        player.ff(seekMinSpeedSec)
 
     elif(key == '1'): # set bookmark
-        info = getMocPlayerInfo()
-        print('Set bookmark at ' + info['currentTime'])
+        info = player.getState()
+        print('Set bookmark at ' + str(info['currentTime']) + 'sec')
         bookmark = info['currentTime']
 
     elif(key == '0'): # play bookmark
-        print('Play bookmark at ' + bookmark)
+        print('Play bookmark at ' + str(bookmark) + 'sec')
+        player.jumpAt(bookmark)
 
     elif(key == '8'): # Previous album
         # Get the current plying song info
-        info = getMocPlayerInfo()
+        info = player.getState()
         if(info != None):
             currentSongInfo = parseSongFilePath(info['file'])
-        
-            # Get the album list for the artist
-            albums = getAlbums(currentSongInfo['artist'])
-            
-            # Find the current album index, sub 1
-            albumI = albums.index(currentSongInfo['album'])
-            prevAlbumI = getPrevI(albumI, len(albums))
-            prevAlbum = albums[prevAlbumI]
-            print('Previous album ' + prevAlbum)
-            # Start the first song in it
-            call(['mocp', '-c', '-a', '-p', join(musicDir, currentSongInfo['artist'], prevAlbum)])
+            if currentSongInfo != None:
+                # Get the album list for the artist
+                albums = getAlbums(currentSongInfo['artist'])
+                
+                # Find the current album index, sub 1
+                albumI = albums.index(currentSongInfo['album'])
+                prevAlbumI = getPrevI(albumI, len(albums))
+                prevAlbum = albums[prevAlbumI]
+                print('Previous album (' + numHash(prevAlbum) + ') ' + prevAlbum)
+
+                # Start the first song in it
+                player.playDir(join(musicDir, currentSongInfo['artist'], prevAlbum))
+            else:
+                print('no file, starting somewhere!')
+                playFirstSongOfAll()
         else:
             print('No info about the current song')
     elif(key == '9'): # Next album
         # Get the current plying song info
-        info = getMocPlayerInfo()
+        info = player.getState()
         if(info != None):
             currentSongInfo = parseSongFilePath(info['file'])
-        
-            # Get the album list for the artist
-            albums = getAlbums(currentSongInfo['artist'])
 
-            # Find the current album index, sub 1
-            albumI = albums.index(currentSongInfo['album'])
-            nextAlbumI = getNextI(albumI, len(albums))
-            nextAlbum = albums[nextAlbumI]
-            print('Next album ' + nextAlbum)    
-            # Start the first song in it
-            call(['mocp', '-c', '-a', '-p', join(musicDir, currentSongInfo['artist'], nextAlbum)])
+            if currentSongInfo != None:
+                # Get the album list for the artist
+                albums = getAlbums(currentSongInfo['artist'])
+
+                # Find the current album index, sub 1
+                albumI = albums.index(currentSongInfo['album'])
+                nextAlbumI = getNextI(albumI, len(albums))
+                nextAlbum = albums[nextAlbumI]
+                print('Next album  (' + numHash(nextAlbum) + ') ' + nextAlbum)    
+
+                # Start the first song in it
+                player.playDir(join(musicDir, currentSongInfo['artist'], nextAlbum))
+            else:
+                print('no file, starting somewhere!')
+                playFirstSongOfAll()
         else:
             print('No info about the current song')
 
     elif(key == '4'): # Previous artist
         # Get the current playing song info
         currentSongInfo = None
-        info = getMocPlayerInfo()
+        info = player.getState()
         artist = ''
         if(info != None):
             currentSongInfo = parseSongFilePath(info['file'])
@@ -104,14 +132,14 @@ def playerScreen_ProcessKey(key):
             
         nextArtist = findNextPlayableArtist(artist, True)
             
-        print('Next artist ' + nextArtist)           
+        print('Previous artist (' + numHash(nextArtist) + ') ' + nextArtist)           
         albums = getAlbums(nextArtist)
-        call(['mocp', '-c', '-a', '-p', join(musicDir, nextArtist, albums[0])])
+        player.playDir(join(musicDir, nextArtist, albums[0]))
 
     elif(key == '7'): # Next artist
         # Get the current playing song info
         currentSongInfo = None
-        info = getMocPlayerInfo()
+        info = player.getState()
         artist = ''
         if(info != None):
             currentSongInfo = parseSongFilePath(info['file'])
@@ -120,12 +148,13 @@ def playerScreen_ProcessKey(key):
             
         nextArtist = findNextPlayableArtist(artist, False)
             
-        print('Next artist ' + nextArtist)           
+        print('Next artist (' + numHash(nextArtist) + ') ' + nextArtist)           
         albums = getAlbums(nextArtist)
-        call(['mocp', '-c', '-a', '-p', join(musicDir, nextArtist, albums[0])])
+        player.playDir(join(musicDir, nextArtist, albums[0]))
         
     elif(key == '.'):
-        getMocPlayerInfo()
+        appState = 'direct-access'
+        print('Enter the direct access numbers (artist.album.song#):')
 
 def findNextPlayableArtist(currentArtist, reverse):
     # Try to find the current artists index.
@@ -180,36 +209,15 @@ def playFirstSongOfAll():
         if(len(albums) > 0):
             call(['mocp', '-c', '-a', '-p', join(musicDir, artist, albums[0])])
             break;
-                    
-def getMocPlayerInfo():
-    mocpInfoStr = check_output(['mocp', '-i'])
-    lines = mocpInfoStr.split('\n')
-    retInfo = {}
-    for line in lines:
-        lineTup = splitMocpInfoLine(line)
-        if(lineTup[0] == 'File'):
-            retInfo['file'] = lineTup[1]
-        elif(lineTup[0] == 'CurrentTime'):
-            retInfo['currentTime'] = lineTup[1]                
-        
-    #print(retInfo)
-    return retInfo
-
-def splitMocpInfoLine(line):
-    i = line.find(': ') # We do that instead of a split because we don't want trouble with potential :
-    if(i == -1):
-        return ('', line)
-    else:
-        return (line[0:i], line[i+2:])
 
 
 def getArtists():
     # Get all files in the folder
-    return [f for f in listdir(musicDir) if not isfile(join(musicDir, f))]
+    return sorted([f for f in listdir(musicDir) if not isfile(join(musicDir, f))])
 
 def getAlbums(artist):
     artistFolder = join(musicDir, artist)
-    return [f for f in listdir(artistFolder) if not isfile(join(artistFolder, f))]
+    return sorted([f for f in listdir(artistFolder) if not isfile(join(artistFolder, f))])
 
 def parseSongFilePath(filePath):
     # If the file path is under our music folder
@@ -220,8 +228,12 @@ def parseSongFilePath(filePath):
             return { 'artist': parts[0], 'album': parts[1], 'song': parts[2] }
     return None
 
+def numHash(name):
+    hash = hashlib.sha224(name).hexdigest()
+    return filter(lambda c: c.isdigit(), hash)[0:6]
+
 if __name__ == '__main__':
-    global musicDir
+    
 
     parser = argparse.ArgumentParser()
     parser.description = "This is an interactive tool that controls Moc Player using a simple numpad."
