@@ -223,8 +223,13 @@ def playerScreen_ProcessKey(key):
             
             if cmd == '1': # Identify song
                 sayCurrentSong()
-            if cmd == '999':
+            elif cmd == '701':
+                call(['git', 'pull'])
+            elif cmd == '999':
                 call(['reboot'])
+            elif cmd == '991':
+                sys.exit(0)
+
 
         
 def findNextPlayableArtist(currentArtist, reverse):
