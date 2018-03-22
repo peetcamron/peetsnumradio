@@ -8,6 +8,16 @@ def init():
 def togglePlayPause():
     call(['mocp', '-G']) # toggle play pause
 
+def play():
+    call(['mocp', '-U'])
+
+def pause():
+    call(['mocp', '-P'])
+
+    
+def setVolume(integerPercentage):
+    call(['mocp', '-v' + str(integerPercentage) + '%'])
+
 def previousSong():
     call(['mocp', '-r']) # Previous song
 

@@ -7,6 +7,7 @@ from os.path import isfile, join
 import re
 import hashlib
 import mocpdriver as player
+import tts
 import sys
     
 appRunning = True
@@ -25,8 +26,6 @@ def main():
 
         if(c == 'q'): # Usefull for development! Could be a command later
             appRunning = False
-        elif appState == 'direct-access':
-            directAccess_ProcessKey(c);
         else:
             playerScreen_ProcessKey(c);
             
@@ -43,11 +42,32 @@ def directAccess_ProcessKey(key):
     else:
         sys.stdout.write(key)
 
+def promptNumber(prompt):
+    input = ''
+    print(prompt + ':')
+    while True:
+        c = readchar.readchar() # Or readchar.readkey()
+
+        if(c == '\r'): # Usefull for development! Could be a command later
+            sys.stdout.write('\n')
+            return (0, input)
+        elif c == '.':
+            sys.stdout.write('\n')
+            return (1, input)
+        elif c == '\b' or ord(c) == 127: # Backspace or Del
+            sys.stdout.write('\n')
+            return (-1, '')
+        elif c.isdigit():
+            input = input + c
+            sys.stdout.write(c)
+    
+    
+        
 def playerScreen_ProcessKey(key):
     global bookmark
     global appState
     
-    if(key == '\r'):
+    if(key == '\r' or key == ' '):
         print('Play/Pause')
         player.togglePlayPause()
 
@@ -153,9 +173,60 @@ def playerScreen_ProcessKey(key):
         player.playDir(join(musicDir, nextArtist, albums[0]))
         
     elif(key == '.'):
-        appState = 'direct-access'
-        print('Enter the direct access numbers (artist.album.song#):')
+        artistNumSel = promptNumber('Artist #')
 
+        if artistNumSel[0] == -1:
+            return
+
+        # The user can enter no artist in order to chose an other album in the current artist
+        artist = ''
+        if len(artistNumSel[1]) == 0: # If no artist specified
+            if artistNumSel[0] == 1: # If user want to selectthe album
+                info = player.getState()
+                if info != None:
+                    currentSongInfo = parseSongFilePath(info['file'])
+                    if currentSongInfo != None:
+                        artist = currentSongInfo['artist']
+        else:
+            artist = findArtistByNumber(artistNumSel[1]) # Try to find our artist
+        
+        if len(artist) == 0:
+            return
+
+        albums = getAlbums(artist)
+        if len(albums) == 0:
+            return
+            
+        if artistNumSel[0] == 0: # The user wants to play this artist
+            album = albums[0]
+            player.playDir(join(musicDir, artist, album)) # Play first album
+            print('Playing ' + artist + ' - ' + album)
+        elif artistNumSel[0] == 1: # User want to select the album for this artist
+            for album in albums:
+                print(numHash(album) + ' ' + album) # Print choices
+                
+            albumNumSel = promptNumber('Album #')
+            if albumNumSel[0] == 0 or albumNumSel[0] == 1: # The user wants to play this artist
+                album = findAlbumByNumber(artist, albumNumSel[1])
+                if len(album) == 0:
+                    return
+                
+                player.playDir(join(musicDir, artist, album))                
+                print('Playing ' + artist + ' - ' + album)
+
+        #print('Looking artist #' + str(num))
+
+    elif(key == '/'):
+        cmdSel = promptNumber('Cmd #')
+        if cmdSel[0] == 0 or cmdSel[0] == 1:
+            cmd = cmdSel[1]
+            
+            if cmd == '1': # Identify song
+                sayCurrentSong()
+            if cmd == '999':
+                call(['reboot'])
+
+        
 def findNextPlayableArtist(currentArtist, reverse):
     # Try to find the current artists index.
     artists = getArtists()
@@ -182,8 +253,38 @@ def findNextPlayableArtist(currentArtist, reverse):
         else:
             print(nextArtist + ' has no albums')
         nextArtistI = getPrevI(nextArtistI, len(artists)) if reverse else getNextI(nextArtistI, len(artists))
-           
-        
+
+def findArtistByNumber(artistNum):
+    return findHashNum(getArtists(), artistNum)
+
+def findAlbumByNumber(artist, albumNum):
+    # Try to find the current artists index.
+    return findHashNum(getAlbums(artist), albumNum)
+
+def sayCurrentSong():
+    info = player.getState()
+    if(info != None):
+        if info['state'] == 'PLAYING':
+            currentSongInfo = parseSongFilePath(info['file'])
+            if currentSongInfo != None:
+                str = tts.formatSongID(getSongID(currentSongInfo['artist'], currentSongInfo['album'])) + '. ' + currentSongInfo['artist'] + '. ' + currentSongInfo['album'] + '. ' + currentSongInfo['song']
+                print(str)                                       
+                player.pause()
+                tts.say(str)
+                player.play()
+
+def getSongID(artist, album):
+    return numHash(artist)[0:4] + '.' + numHash(album)[0:4]
+
+
+def findHashNum(list, num):
+    for item in list:
+        hash = numHash(item)
+        if hash.startswith(num):
+            return item
+    return ''
+
+    
 def indexOf(list, item):
     try:
         return list.index(item)
@@ -245,6 +346,9 @@ if __name__ == '__main__':
         musicDir = musicDir[:-1]
         
     print('Playing music from ' + musicDir)
+
+    for artist in getArtists():
+        print(numHash(artist) + ' ' + artist)
     
     main()
 
