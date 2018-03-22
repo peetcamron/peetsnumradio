@@ -227,6 +227,8 @@ def playerScreen_ProcessKey(key):
                 call(['git', 'pull'])
             elif cmd == '999':
                 call(['reboot'])
+            elif cmd == '998':
+                call(['shutdown', 'now'])
             elif cmd == '991':
                 sys.exit(0)
 
