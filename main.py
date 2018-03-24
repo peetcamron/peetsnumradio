@@ -9,11 +9,15 @@ import hashlib
 import mocpdriver as player
 import tts
 import sys
+from objcreator import obj
     
 appRunning = True
 seekMinSpeedSec = 6 # seconds (Create a seekMaxSpeedSec later and do a variable speed)
 musicDir = None
 bookmark = None
+
+currentSelection = obj({ "artist": "", "album": "", "song": "" })
+
 
 appState = 'player' # '': player, ''
 
@@ -21,6 +25,18 @@ def main():
     global appRunning
     global appState
     player.init()
+
+    # Reload what the player is playing right now
+    info = player.getState()
+    if(info != None):
+        currentSongInfo = parseSongFilePath(info['file'])
+        if currentSongInfo != None:
+            currentSelection.artist = currentSongInfo['artist']
+            currentSelection.album = currentSongInfo['album']
+            currentSelection.song = currentSongInfo['song']
+
+    print('Player is currently playing ' + currentSelection.artist + ' - ' + currentSelection.album + ' - ' + currentSelection.song)
+            
     while appRunning:
         c = readchar.readchar() # Or readchar.readkey()
 
@@ -32,15 +48,6 @@ def main():
         #print("You used: ", c)
 
         # call(["ls", "-l"])
-
-def directAccess_ProcessKey(key):
-    global appState
-        
-    if key == '.':
-        print('\nDone direct access.')
-        appState = 'player'
-    else:
-        sys.stdout.write(key)
 
 def promptNumber(prompt):
     input = ''
@@ -66,6 +73,7 @@ def promptNumber(prompt):
 def playerScreen_ProcessKey(key):
     global bookmark
     global appState
+    global currentSelection
     
     if(key == '\r' or key == ' '):
         print('Play/Pause')
@@ -95,82 +103,48 @@ def playerScreen_ProcessKey(key):
         player.jumpAt(bookmark)
 
     elif(key == '8'): # Previous album
-        # Get the current plying song info
-        info = player.getState()
-        if(info != None):
-            currentSongInfo = parseSongFilePath(info['file'])
-            if currentSongInfo != None:
-                # Get the album list for the artist
-                albums = getAlbums(currentSongInfo['artist'])
+        if currentSelection.album:
+            # Get the album list for the artist
+            albums = getAlbums(currentSelection.artist)
                 
-                # Find the current album index, sub 1
-                albumI = albums.index(currentSongInfo['album'])
-                prevAlbumI = getPrevI(albumI, len(albums))
-                prevAlbum = albums[prevAlbumI]
-                print('Previous album (' + numHash(prevAlbum) + ') ' + prevAlbum)
-
-                # Start the first song in it
-                player.playDir(join(musicDir, currentSongInfo['artist'], prevAlbum))
-            else:
-                print('no file, starting somewhere!')
-                playFirstSongOfAll()
+            # Find the current album index, sub 1
+            albumI = albums.index(currentSelection.album)
+            prevAlbumI = getPrevI(albumI, len(albums))
+            
+            # Start the first song in it
+            playAlbum(currentSelection.artist, albums[prevAlbumI])
+            displayCurrentSelection()
         else:
-            print('No info about the current song')
+            print("No album selected, let's start somewhere!")
+            playFirstSongOfAll()
+                
     elif(key == '9'): # Next album
-        # Get the current plying song info
-        info = player.getState()
-        if(info != None):
-            currentSongInfo = parseSongFilePath(info['file'])
-
-            if currentSongInfo != None:
-                # Get the album list for the artist
-                albums = getAlbums(currentSongInfo['artist'])
-
-                # Find the current album index, sub 1
-                albumI = albums.index(currentSongInfo['album'])
-                nextAlbumI = getNextI(albumI, len(albums))
-                nextAlbum = albums[nextAlbumI]
-                print('Next album  (' + numHash(nextAlbum) + ') ' + nextAlbum)    
-
-                # Start the first song in it
-                player.playDir(join(musicDir, currentSongInfo['artist'], nextAlbum))
-            else:
-                print('no file, starting somewhere!')
-                playFirstSongOfAll()
+        if currentSelection.album:
+            # Get the album list for the artist
+            albums = getAlbums(currentSelection.artist)
+                
+            # Find the current album index, sub 1
+            albumI = albums.index(currentSelection.album)
+            nextAlbumI = getNextI(albumI, len(albums))
+            
+            # Start the first song in it
+            playAlbum(currentSelection.artist, albums[nextAlbumI])
+            displayCurrentSelection()
         else:
-            print('No info about the current song')
+            print("No album selected, let's start somewhere!")
+            playFirstSongOfAll()
 
     elif(key == '4'): # Previous artist
-        # Get the current playing song info
-        currentSongInfo = None
-        info = player.getState()
-        artist = ''
-        if(info != None):
-            currentSongInfo = parseSongFilePath(info['file'])
-        if(currentSongInfo != None):
-            artist = currentSongInfo['artist']
-            
-        nextArtist = findNextPlayableArtist(artist, True)
-            
-        print('Previous artist (' + numHash(nextArtist) + ') ' + nextArtist)           
-        albums = getAlbums(nextArtist)
-        player.playDir(join(musicDir, nextArtist, albums[0]))
+        artist = findNextPlayableArtist(currentSelection.artist, True)
+        albums = getAlbums(artist)
+        playAlbum(artist, albums[0])
+        displayCurrentSelection()
 
     elif(key == '7'): # Next artist
-        # Get the current playing song info
-        currentSongInfo = None
-        info = player.getState()
-        artist = ''
-        if(info != None):
-            currentSongInfo = parseSongFilePath(info['file'])
-        if(currentSongInfo != None):
-            artist = currentSongInfo['artist']
-            
-        nextArtist = findNextPlayableArtist(artist, False)
-            
-        print('Next artist (' + numHash(nextArtist) + ') ' + nextArtist)           
-        albums = getAlbums(nextArtist)
-        player.playDir(join(musicDir, nextArtist, albums[0]))
+        artist = findNextPlayableArtist(currentSelection.artist, False)
+        albums = getAlbums(artist)
+        playAlbum(artist, albums[0])
+        displayCurrentSelection()
         
     elif(key == '.'):
         artistNumSel = promptNumber('Artist #')
@@ -198,9 +172,9 @@ def playerScreen_ProcessKey(key):
             return
             
         if artistNumSel[0] == 0: # The user wants to play this artist
-            album = albums[0]
-            player.playDir(join(musicDir, artist, album)) # Play first album
-            print('Playing ' + artist + ' - ' + album)
+            currentSelection.artist = artist
+            currentSelection.album = albums[0]
+            playAlbum(currentSelection.artist, currentSelection.album)
         elif artistNumSel[0] == 1: # User want to select the album for this artist
             for album in albums:
                 print(numHash(album) + ' ' + album) # Print choices
@@ -211,10 +185,9 @@ def playerScreen_ProcessKey(key):
                 if len(album) == 0:
                     return
                 
-                player.playDir(join(musicDir, artist, album))                
-                print('Playing ' + artist + ' - ' + album)
+                playAlbum(artist, album)
 
-        #print('Looking artist #' + str(num))
+        displayCurrentSelection()
 
     elif(key == '/'):
         cmdSel = promptNumber('Cmd #')
@@ -223,15 +196,17 @@ def playerScreen_ProcessKey(key):
             
             if cmd == '1': # Identify song
                 sayCurrentSong()
-            elif cmd == '701':
-                call(['git', 'pull'])
-            elif cmd == '999':
+            elif cmd == '99':
                 call(['reboot'])
-            elif cmd == '998':
+            elif cmd == '98':
                 call(['shutdown', 'now'])
+            elif cmd == '91':
+                call(['git', 'pull'])
             elif cmd == '991':
                 sys.exit(0)
 
+def displayCurrentSelection():
+    print('[' + numHash(currentSelection.artist) + '] ' + currentSelection.artist + ' - [' + numHash(currentSelection.album) + '] ' + currentSelection.album)
 
         
 def findNextPlayableArtist(currentArtist, reverse):
@@ -269,16 +244,19 @@ def findAlbumByNumber(artist, albumNum):
     return findHashNum(getAlbums(artist), albumNum)
 
 def sayCurrentSong():
+    song = ''
     info = player.getState()
     if(info != None):
         if info['state'] == 'PLAYING':
             currentSongInfo = parseSongFilePath(info['file'])
             if currentSongInfo != None:
-                str = tts.formatSongID(getSongID(currentSongInfo['artist'], currentSongInfo['album'])) + '. ' + currentSongInfo['artist'] + '. ' + currentSongInfo['album'] + '. ' + currentSongInfo['song']
-                print(str)                                       
-                player.pause()
-                tts.say(str)
-                player.play()
+                song = currentSongInfo['song']
+
+    str = tts.formatSongID(getSongID(currentSelection.artist, currentSelection.album)) + '. ' + currentSelection.artist + '. ' + currentSelection.album + '. ' + song
+    print(str)                                       
+    player.pause()
+    tts.say(str)
+    player.play()
 
 def getSongID(artist, album):
     return numHash(artist)[0:4] + '.' + numHash(album)[0:4]
@@ -310,14 +288,35 @@ def getPrevI(curI, itemCount):
     else:
         return curI - 1
 
+def playAlbum(artist, album):
+    #sel = getSelectionOrDefault()
+    currentSelection.artist = artist
+    currentSelection.album = album
+    player.playDir(join(musicDir, artist, album))
+
+def getSelectionOrDefault():
+    print('Get of default!')
+    global currentSelection
+    if currentSelection == None:
+        currentSelection = findFirstAlbumOfAll()
+    return currentSelection
+        
+    
 def playFirstSongOfAll():
+    firstAlbum = findFirstAlbumOfAll()
+    if firstAlbum != None:
+        playAlbum(firstAlbum['artist'], firstAlbum['album'])
+        displayCurrentSelection()
+        
+
+def findFirstAlbumOfAll():
+    print('Searching first album of all!')
     artists = getArtists()
     for artist in artists:
         albums = getAlbums(artist)
         if(len(albums) > 0):
-            call(['mocp', '-c', '-a', '-p', join(musicDir, artist, albums[0])])
-            break;
-
+            return { "artist": artist, "album": albums[0] }
+    return None
 
 def getArtists():
     # Get all files in the folder
@@ -342,7 +341,6 @@ def numHash(name):
 
 if __name__ == '__main__':
     
-
     parser = argparse.ArgumentParser()
     parser.description = "This is an interactive tool that controls Moc Player using a simple numpad."
     parser.add_argument('-d', '--dir', help='Main music directory', required=True) 
@@ -356,7 +354,7 @@ if __name__ == '__main__':
 
     for artist in getArtists():
         print(numHash(artist) + ' ' + artist)
-    
+
     main()
 
 

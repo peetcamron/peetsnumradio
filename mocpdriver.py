@@ -2,7 +2,7 @@
 from subprocess import call, check_output
 
 def init():
-    pState = getState()
+    #pState = getState()
     call(['mocp', '-o', 'REPEAT']) # Set REPEAT, very important so the player doesn't stop when we go out of list
 
 def togglePlayPause():
