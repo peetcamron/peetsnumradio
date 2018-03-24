@@ -31,8 +31,20 @@ def rr(sec):
     call(['mocp', '-k-' + str(sec)]) # seek
         
 def jumpAt(sec):
-    call(['mocp', '-j' + str(sec)]) # Jump
 
+    # We would normally do the following call. But currently, moc player as a Segmentation
+    # fault on this command and on all versions on all OS...
+    # In the meantime, I do it by hand
+    # call(['mocp', '-j' + str(sec)]) # Jump
+
+    # Ge thte current position
+    info = getState()
+    if info and info['state'] == 'PLAYING':
+        ct = info['currentTime']
+        step = sec - ct
+        call(['mocp', '-k' + str(step)])
+    
+    
 def playDir(dirPath):
     # Start the first song in it
     call(['mocp', '-c', '-a', '-p', dirPath])

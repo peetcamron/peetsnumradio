@@ -28,9 +28,9 @@ def main():
 
     # Reload what the player is playing right now
     info = player.getState()
-    if(info != None):
+    if info:
         currentSongInfo = parseSongFilePath(info['file'])
-        if currentSongInfo != None:
+        if currentSongInfo:
             currentSelection.artist = currentSongInfo['artist']
             currentSelection.album = currentSongInfo['album']
             currentSelection.song = currentSongInfo['song']
@@ -86,10 +86,10 @@ def playerScreen_ProcessKey(key):
         print('Next song')
         player.nextSong()
 
-    elif(key == '5'):
+    elif(key == '4'):
         print('<< ' + str(seekMinSpeedSec) + ' sec')
         player.rr(seekMinSpeedSec)
-    elif(key == '6'):
+    elif(key == '7'):
         print('>> ' + str(seekMinSpeedSec) + ' sec')
         player.ff(seekMinSpeedSec)
 
@@ -100,9 +100,10 @@ def playerScreen_ProcessKey(key):
 
     elif(key == '0'): # play bookmark
         print('Play bookmark at ' + str(bookmark) + 'sec')
-        player.jumpAt(bookmark)
+        if bookmark:
+            player.jumpAt(bookmark)
 
-    elif(key == '8'): # Previous album
+    elif(key == '5'): # Previous album
         if currentSelection.album:
             # Get the album list for the artist
             albums = getAlbums(currentSelection.artist)
@@ -118,7 +119,7 @@ def playerScreen_ProcessKey(key):
             print("No album selected, let's start somewhere!")
             playFirstSongOfAll()
                 
-    elif(key == '9'): # Next album
+    elif(key == '6'): # Next album
         if currentSelection.album:
             # Get the album list for the artist
             albums = getAlbums(currentSelection.artist)
@@ -134,13 +135,13 @@ def playerScreen_ProcessKey(key):
             print("No album selected, let's start somewhere!")
             playFirstSongOfAll()
 
-    elif(key == '4'): # Previous artist
+    elif(key == '8'): # Previous artist
         artist = findNextPlayableArtist(currentSelection.artist, True)
         albums = getAlbums(artist)
         playAlbum(artist, albums[0])
         displayCurrentSelection()
 
-    elif(key == '7'): # Next artist
+    elif(key == '9'): # Next artist
         artist = findNextPlayableArtist(currentSelection.artist, False)
         albums = getAlbums(artist)
         playAlbum(artist, albums[0])
@@ -157,9 +158,9 @@ def playerScreen_ProcessKey(key):
         if len(artistNumSel[1]) == 0: # If no artist specified
             if artistNumSel[0] == 1: # If user want to selectthe album
                 info = player.getState()
-                if info != None:
+                if info:
                     currentSongInfo = parseSongFilePath(info['file'])
-                    if currentSongInfo != None:
+                    if currentSongInfo:
                         artist = currentSongInfo['artist']
         else:
             artist = findArtistByNumber(artistNumSel[1]) # Try to find our artist
@@ -200,10 +201,10 @@ def playerScreen_ProcessKey(key):
                 call(['reboot'])
             elif cmd == '98':
                 call(['shutdown', 'now'])
+            elif cmd == '97':
+                sys.exit(0)
             elif cmd == '91':
                 call(['git', 'pull'])
-            elif cmd == '991':
-                sys.exit(0)
 
 def displayCurrentSelection():
     print('[' + numHash(currentSelection.artist) + '] ' + currentSelection.artist + ' - [' + numHash(currentSelection.album) + '] ' + currentSelection.album)
@@ -246,10 +247,10 @@ def findAlbumByNumber(artist, albumNum):
 def sayCurrentSong():
     song = ''
     info = player.getState()
-    if(info != None):
+    if info:
         if info['state'] == 'PLAYING':
             currentSongInfo = parseSongFilePath(info['file'])
-            if currentSongInfo != None:
+            if currentSongInfo:
                 song = currentSongInfo['song']
 
     str = tts.formatSongID(getSongID(currentSelection.artist, currentSelection.album)) + '. ' + currentSelection.artist + '. ' + currentSelection.album + '. ' + song
@@ -304,7 +305,7 @@ def getSelectionOrDefault():
     
 def playFirstSongOfAll():
     firstAlbum = findFirstAlbumOfAll()
-    if firstAlbum != None:
+    if firstAlbum:
         playAlbum(firstAlbum['artist'], firstAlbum['album'])
         displayCurrentSelection()
         
