@@ -45,9 +45,14 @@ def playSong(num):
     
 # { state: 'DOWN|STOPPED|PLAYING', file: '', currentTimeSec: ''}
 def getState():
-    infoStr = check_output(['mpc', 'status'])
-    lines = infoStr.split('\n')
     retInfo = { 'state': 'DOWN', 'file': '', 'currentTime': 0 }
+    infoStr = ''
+    try:
+        infoStr = check_output(['mpc', 'status'])
+    except:
+        return retInfo
+    lines = infoStr.split('\n')
+    
 
     # Artist - Song
     # [playing] #5/13   0:59/3:31  (27%)           (Possible values: [playing], [paused])
