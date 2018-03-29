@@ -6,7 +6,7 @@ from os import listdir
 from os.path import isfile, join
 import re
 import hashlib
-import mocpdriver as player
+import mpddriver as player
 import tts
 import sys
 from objcreator import obj

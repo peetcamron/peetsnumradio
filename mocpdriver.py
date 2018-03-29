@@ -48,7 +48,11 @@ def jumpAt(sec):
 def playDir(dirPath):
     # Start the first song in it
     call(['mocp', '-c', '-a', '-p', dirPath])
-        
+
+def playSong(num):
+    # Start the first song in it
+    # call(['mpc', 'play', str(num)])
+
 # { state: 'DOWN|STOPPED|PLAYING', file: '', currentTimeSec: ''}
 def getState():
     mocpInfoStr = check_output(['mocp', '-i'])
