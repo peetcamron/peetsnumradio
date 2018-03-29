@@ -53,11 +53,11 @@ def playSong(num):
     # Start the first song in it
     # call(['mpc', 'play', str(num)])
 
-# { state: 'DOWN|STOPPED|PLAYING', file: '', currentTimeSec: ''}
+# { state: 'DOWN|STOPPED|PLAYING', file: '', currentTime: ''}
 def getState():
     mocpInfoStr = check_output(['mocp', '-i'])
     lines = mocpInfoStr.split('\n')
-    retInfo = { 'state': 'DOWN', 'file': '', 'currentTimeSec': 0 }
+    retInfo = { 'state': 'DOWN', 'file': '', 'currentTime': 0 }
     for line in lines:
         lineTup = splitMocpInfoLine(line)
         if(lineTup[0] == 'File'):

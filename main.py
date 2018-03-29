@@ -189,11 +189,7 @@ def processDirectAccess():
     artist = ''
     if len(artistNumSel[1]) == 0: # If no artist specified
         if artistNumSel[0] == 1: # If user want to selectthe album
-            info = player.getState()
-            if info:
-                currentSongInfo = parseSongFilePath(info['file'])
-                if currentSongInfo:
-                    artist = currentSongInfo['artist']
+            artist = currentSelection.artist
     else:
         artist = findArtistByNumber(artistNumSel[1]) # Try to find our artist
 

@@ -47,7 +47,7 @@ def playSong(num):
 def getState():
     infoStr = check_output(['mpc', 'status'])
     lines = infoStr.split('\n')
-    retInfo = { 'state': 'DOWN', 'file': '', 'currentTimeSec': 0 }
+    retInfo = { 'state': 'DOWN', 'file': '', 'currentTime': 0 }
 
     # Artist - Song
     # [playing] #5/13   0:59/3:31  (27%)           (Possible values: [playing], [paused])
@@ -64,7 +64,7 @@ def getState():
 
         m = re.search('(\d?\d:\d\d)/\d?\d:\d\d', lines[1])
         if m != None:
-            retInfo['currentTimeSec'] = timeInSec(m.group(1))
+            retInfo['currentTime'] = timeInSec(m.group(1))
                       
     return retInfo
 
