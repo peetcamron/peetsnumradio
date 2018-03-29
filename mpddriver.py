@@ -37,6 +37,7 @@ def playDir(dirPath):
     # Start the first song in it
     call(['mpc', 'clear'])
     call(['mpc', 'add', dirPath])
+    call(['mpc', 'play'])
 
 def playSong(num):
     # Start the first song in it
