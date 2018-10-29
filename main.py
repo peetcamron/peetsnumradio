@@ -3,14 +3,16 @@ from subprocess import call, check_output
 import argparse
 import os
 from os import listdir
-from os.path import isfile, join
+from os.path import isfile, join, expanduser
 import re
 import hashlib
 import mpddriver as player
 import tts
 import sys
 from objcreator import obj
-    
+
+import config
+
 appRunning = True
 seekMinSpeedSec = 6 # seconds (Create a seekMaxSpeedSec later and do a variable speed)
 musicDir = None
@@ -22,6 +24,14 @@ currentSelection = obj({ "artist": "", "album": "", "song": "" })
 appState = 'player' # '': player, ''
 
 def main():
+
+    al = config.getPlayingAlbum()
+    if al != None:
+        print(al["artist"] + " / " + al["album"])
+    config.savePlayingAlbum("Scorpions", "Hour two")
+
+
+    
     global appRunning
     global appState
     player.init()
@@ -238,6 +248,7 @@ def processTreeAccess():
             artist = artists[proposedI]
 
             print(artist)
+            print(str(proposedI))
             player.pause()
             tts.say(artist)
             player.play()
@@ -290,6 +301,7 @@ def findNextPlayableArtist(currentArtist, reverse):
     
     while nextArtistI != currentArtistI:
         nextArtist = artists[nextArtistI]
+        print(nextArtist)
         albums = getAlbums(nextArtist)
         if(len(albums) > 0):
             return nextArtist
@@ -391,13 +403,16 @@ def findFirstAlbumOfAll():
             return { "artist": artist, "album": albums[0] }
     return None
 
+def insensSorted(list):
+    return sorted(list, key=lambda s: s.lower())
+
 def getArtists():
     # Get all files in the folder
-    return sorted([f for f in listdir(musicDir) if not isfile(join(musicDir, f))])
+    return insensSorted([f for f in listdir(musicDir) if not isfile(join(musicDir, f))])
 
 def getAlbums(artist):
     artistFolder = join(musicDir, artist)
-    return sorted([f for f in listdir(artistFolder) if not isfile(join(artistFolder, f))])
+    return insensSorted([f for f in listdir(artistFolder) if not isfile(join(artistFolder, f))])
 
 def parseSongFilePath(filePath):
     # If the file path is under our music folder
